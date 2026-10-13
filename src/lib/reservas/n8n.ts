@@ -1,7 +1,7 @@
 import { DateTime } from 'luxon'
-import type { Negocio } from '../negocio'
-import type { Conector, Disponibilidad, NuevaReserva } from './conector'
-import { turnoDe, type Comprobacion, type Hueco, type Reserva } from './motor'
+import type { Negocio } from '../negocio.js'
+import type { Conector, Disponibilidad, NuevaReserva } from './conector.js'
+import { turnoDe, type Comprobacion, type Hueco, type Reserva } from './motor.js'
 
 /**
  * Conector para el sistema de reservas real de Taberna Luna (n8n), usando su

@@ -1,5 +1,5 @@
 import { DateTime } from 'luxon'
-import { numeroEnLetra } from './numeros'
+import { numeroEnLetra } from './numeros.js'
 
 /**
  * Textos pensados para el oído: los sintetizadores leen «21:30» como

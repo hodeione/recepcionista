@@ -6,6 +6,8 @@ export interface Preferencias {
   oido: 'navegador' | 'whisper' | 'texto'
   vozId: string
   velocidad: number
+  /** Voz realista con IA (ElevenLabs u OpenAI) o la del navegador. */
+  vozModo: 'realista' | 'navegador'
 }
 
 export interface EstadoIA {
@@ -14,7 +16,14 @@ export interface EstadoIA {
   motivo: string | null
 }
 
+export interface EstadoVozIA {
+  comprobado: boolean
+  configured: boolean
+  proveedor: string | null
+}
+
 interface Props {
+  vozIA: EstadoVozIA
   pref: Preferencias
   cambiar: (p: Partial<Preferencias>) => void
   voces: InfoVoz[]
@@ -24,7 +33,7 @@ interface Props {
   onCerrar: () => void
 }
 
-export default function Ajustes({ pref, cambiar, voces, ia, hayNavegador, onProbarVoz, onCerrar }: Props) {
+export default function Ajustes({ pref, cambiar, voces, ia, vozIA, hayNavegador, onProbarVoz, onCerrar }: Props) {
   const motivoIA = !ia.comprobado ? 'Comprobando…' : ia.configured ? 'Disponible' : ia.motivo === 'sin_saldo' ? 'Sin saldo en la cuenta' : 'Sin clave de API en el servidor'
   return (
     <div className="absolute inset-0 z-10 flex flex-col bg-[#0b0c0f]/97 backdrop-blur" role="dialog" aria-label="Ajustes de la llamada">
@@ -45,7 +54,15 @@ export default function Ajustes({ pref, cambiar, voces, ia, hayNavegador, onProb
           <Opcion activa={pref.oido === 'texto'} onClick={() => cambiar({ oido: 'texto' })} titulo="Solo texto" detalle="Escribes en lugar de hablar. Ella sigue hablando." />
         </Grupo>
         <Grupo titulo="Voz">
-          {voces.length ? (
+          <Opcion
+            activa={pref.vozModo === 'realista'}
+            onClick={() => cambiar({ vozModo: 'realista' })}
+            titulo="Voz realista con IA"
+            detalle={`Suena como una persona: ${vozIA.proveedor === 'openai' ? 'OpenAI' : 'ElevenLabs'}, generada frase a frase. ${!vozIA.comprobado ? 'Comprobando…' : vozIA.configured ? 'Disponible.' : 'Aún no está activada en el servidor.'}`}
+            aviso={vozIA.comprobado && !vozIA.configured ? 'Mientras tanto se usa la voz del navegador.' : undefined}
+          />
+          <Opcion activa={pref.vozModo === 'navegador'} onClick={() => cambiar({ vozModo: 'navegador' })} titulo="Voz del navegador" detalle="Gratis y sin conexión. Suena más robótica salvo las voces «Natural» de Edge." />
+          {pref.vozModo === 'navegador' && voces.length > 0 && (
             <>
               <select
                 value={pref.vozId || voces[0]!.id}
@@ -69,8 +86,11 @@ export default function Ajustes({ pref, cambiar, voces, ia, hayNavegador, onProb
               </button>
               <p className="mt-2 text-xs text-mute">Las voces «Natural» de Edge y la de Google en Chrome son las que mejor suenan.</p>
             </>
-          ) : (
-            <p className="text-sm text-mute">Este navegador no tiene voces en castellano.</p>
+          )}
+          {pref.vozModo === 'realista' && (
+            <button onClick={onProbarVoz} className="rounded-full border border-line px-4 py-2 font-mono text-xs text-soft hover:border-mute">
+              Probar voz
+            </button>
           )}
         </Grupo>
       </div>

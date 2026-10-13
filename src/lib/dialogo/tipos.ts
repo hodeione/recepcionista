@@ -1,4 +1,4 @@
-import type { Reserva } from '../reservas/motor'
+import type { Reserva } from '../reservas/motor.js'
 
 /** Lo que pasa en una llamada además de hablar. */
 export type Evento =

@@ -1,7 +1,7 @@
 import { DateTime } from 'luxon'
-import type { Negocio } from './negocio'
-import { reservasDemo, type Almacen } from './reservas/conector'
-import type { Reserva } from './reservas/motor'
+import type { Negocio } from './negocio.js'
+import { reservasDemo, type Almacen } from './reservas/conector.js'
+import type { Reserva } from './reservas/motor.js'
 
 /**
  * Datos de la demo en el navegador: reservas y registro de llamadas. Cada día

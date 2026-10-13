@@ -1,6 +1,6 @@
 import { DateTime } from 'luxon'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import Ajustes, { type EstadoIA, type Preferencias } from './components/Ajustes'
+import Ajustes, { type EstadoIA, type EstadoVozIA, type Preferencias } from './components/Ajustes'
 import * as I from './components/Iconos'
 import Panel from './components/Panel'
 import Telefono from './components/Telefono'
@@ -9,6 +9,7 @@ import { Llamada } from './lib/llamada'
 import { TABERNA_LUNA } from './lib/negocio'
 import { ConectorLocal } from './lib/reservas/conector'
 import { Microfono } from './lib/voz/microfono'
+import { VozNube } from './lib/voz/nube'
 import { OidoNavegador, OidoWhisper, hayReconocimientoNavegador, type Oido } from './lib/voz/reconocimiento'
 import { Sintetizador, cargarVoces, type InfoVoz } from './lib/voz/sintesis'
 
@@ -28,7 +29,7 @@ const EJEMPLOS = [
 ]
 
 function leerPref(): Preferencias {
-  const def: Preferencias = { cerebro: 'auto', oido: hayReconocimientoNavegador() ? 'navegador' : 'whisper', vozId: '', velocidad: 1.05 }
+  const def: Preferencias = { cerebro: 'auto', oido: hayReconocimientoNavegador() ? 'navegador' : 'whisper', vozId: '', velocidad: 1.05, vozModo: 'realista' }
   try {
     const p = JSON.parse(localStorage.getItem(CLAVE_PREF) ?? '{}') as Partial<Preferencias>
     return { ...def, ...p }
@@ -41,12 +42,14 @@ export default function App() {
   const almacen = useMemo(() => new AlmacenDemo(negocio, ahora), [])
   const conector = useMemo(() => new ConectorLocal(negocio, almacen, ahora), [almacen])
   const voz = useRef(new Sintetizador())
+  const vozNube = useRef(new VozNube(voz.current))
   const mic = useRef(new Microfono())
   const whisper = useRef<OidoWhisper | null>(null)
 
   const [pref, setPref] = useState(leerPref)
   const [voces, setVoces] = useState<InfoVoz[]>([])
   const [ia, setIa] = useState<EstadoIA>({ comprobado: false, configured: false, motivo: null })
+  const [vozIA, setVozIA] = useState<EstadoVozIA>({ comprobado: false, configured: false, proveedor: null })
   const [llamada, setLlamada] = useState<Llamada | null>(null)
   const [, setVersion] = useState(0)
   const [preparando, setPreparando] = useState<string | null>(null)
@@ -59,6 +62,10 @@ export default function App() {
       .then((r) => (r.ok ? r.json() : Promise.reject()))
       .then((d: { configured: boolean; motivo: string | null }) => setIa({ comprobado: true, configured: d.configured, motivo: d.motivo }))
       .catch(() => setIa({ comprobado: true, configured: false, motivo: 'sin_clave' }))
+    fetch('/api/voz')
+      .then((r) => (r.ok ? r.json() : Promise.reject()))
+      .then((d: { configured: boolean; proveedor: string | null }) => setVozIA({ comprobado: true, configured: d.configured, proveedor: d.proveedor }))
+      .catch(() => setVozIA({ comprobado: true, configured: false, proveedor: null }))
   }, [])
 
   useEffect(() => {
@@ -73,12 +80,15 @@ export default function App() {
 
   const cambiar = (p: Partial<Preferencias>) => setPref((x) => ({ ...x, ...p }))
   const usaIA = pref.cerebro === 'auto' && ia.configured
+  const usaVozIA = pref.vozModo === 'realista' && vozIA.configured
+  const vozActual = () => (usaVozIA && !vozNube.current.desactivada ? vozNube.current : voz.current)
   const etiquetaMotor = `${usaIA ? 'Claude Haiku 5.5' : 'Motor local'} · ${pref.oido === 'navegador' ? 'voz del navegador' : pref.oido === 'whisper' ? 'Whisper local' : 'solo texto'}`
 
   const llamar = useCallback(async () => {
     setError('')
     setVerAjustes(false)
-    // iOS solo deja hablar si la primera locución sale de un toque: se «desbloquea» aquí, en silencio.
+    // iOS solo deja sonar audio que salga de un toque: se «desbloquea» aquí, en silencio.
+    vozNube.current.desbloquear()
     if (typeof speechSynthesis !== 'undefined') {
       const u = new SpeechSynthesisUtterance('.')
       u.volume = 0
@@ -103,10 +113,10 @@ export default function App() {
       }
     }
     setPreparando(null)
-    const l = new Llamada({ negocio, conector, almacen, ahora, ia: usaIA, oido, mic: mic.current.abierto ? mic.current : null, voz: voz.current, alCambiar: () => setVersion((v) => v + 1) })
+    const l = new Llamada({ negocio, conector, almacen, ahora, ia: usaIA, oido, mic: mic.current.abierto ? mic.current : null, voz: vozActual(), alCambiar: () => setVersion((v) => v + 1) })
     setLlamada(l)
     void l.empezar()
-  }, [pref.oido, usaIA, conector, almacen])
+  }, [pref.oido, usaIA, usaVozIA, conector, almacen])
 
   // Al salir de la página no se queda el micrófono abierto.
   useEffect(() => () => mic.current.cerrar(), [])
@@ -115,8 +125,10 @@ export default function App() {
   }, [llamada?.estado])
 
   const probarVoz = () => {
-    voz.current.cancelar()
-    voz.current.hablar(`Hola, soy ${negocio.asistente}, la recepcionista de ${negocio.nombre}. ¿En qué puedo ayudarle?`)
+    vozNube.current.desbloquear()
+    const v = vozActual()
+    v.cancelar()
+    v.hablar(`Hola, soy ${negocio.asistente}, la recepcionista de ${negocio.nombre}. ¿En qué puedo ayudarle?`)
   }
 
   const activa = llamada?.activa && llamada.estado !== 'sonando'
@@ -158,7 +170,7 @@ export default function App() {
             <div className="mt-6 flex flex-wrap gap-2 font-mono text-[11px]">
               <Chip>{usaIA ? 'Cerebro: Claude Haiku 5.5' : 'Cerebro: motor local'}</Chip>
               <Chip>Oído: {pref.oido === 'navegador' ? 'reconocimiento del navegador' : pref.oido === 'whisper' ? 'Whisper en tu equipo' : 'texto'}</Chip>
-              <Chip>Voz: {voces.find((v) => v.id === pref.vozId)?.nombre ?? voces[0]?.nombre ?? 'del navegador'}</Chip>
+              <Chip>Voz: {usaVozIA ? `realista (${vozIA.proveedor === 'openai' ? 'OpenAI' : 'ElevenLabs'})` : (voces.find((v) => v.id === pref.vozId)?.nombre ?? voces[0]?.nombre ?? 'del navegador')}</Chip>
             </div>
             <div className="mt-8">
               <p className="font-mono text-[11px] tracking-wider text-mute uppercase">{activa ? 'Toca para decirlo (o dilo en voz alta)' : 'Durante la llamada, prueba a decir'}</p>
@@ -189,7 +201,7 @@ export default function App() {
             onAjustes={() => setVerAjustes(true)}
             ajustes={
               verAjustes && (
-                <Ajustes pref={pref} cambiar={cambiar} voces={voces} ia={ia} hayNavegador={hayReconocimientoNavegador()} onProbarVoz={probarVoz} onCerrar={() => setVerAjustes(false)} />
+                <Ajustes pref={pref} cambiar={cambiar} voces={voces} ia={ia} vozIA={vozIA} hayNavegador={hayReconocimientoNavegador()} onProbarVoz={probarVoz} onCerrar={() => setVerAjustes(false)} />
               )
             }
           />
@@ -281,8 +293,8 @@ const PASOS = [
   {
     n: '04',
     titulo: 'Voz',
-    texto: 'La respuesta de Claude se convierte en voz frase a frase mientras se genera, así que empieza a hablar antes de terminar de pensar. Horas, fechas y códigos se escriben para el oído: «a las nueve y media», «R, X, siete».',
-    tags: ['Síntesis del navegador', 'Frases en streaming', 'Texto para el oído'],
+    texto: 'Voz realista con IA (ElevenLabs u OpenAI) que suena como una persona, generada frase a frase mientras Claude escribe: la siguiente se descarga mientras suena la anterior. Sin clave, la voz del navegador. Horas, fechas y códigos se escriben para el oído.',
+    tags: ['ElevenLabs · OpenAI', 'Frases en streaming', 'Web Audio'],
   },
 ]
 
@@ -290,7 +302,7 @@ function ComoFunciona() {
   return (
     <section id="como" className="mx-auto max-w-6xl scroll-mt-20 px-4 py-14 sm:px-6">
       <Titulo eyebrow="Por dentro" titulo="Cómo funciona">
-        Todo lo que ves corre en tu navegador salvo la llamada a Claude, que pasa por una función sin servidor que solo reenvía la conversación. Sin base de datos, sin grabaciones.
+        Todo corre en tu navegador salvo Claude y la voz realista, que pasan por funciones sin servidor que solo reenvían el texto. Sin base de datos, sin grabaciones. Y la misma recepcionista puede contestar un número de teléfono real con Twilio.
       </Titulo>
       <ol className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         {PASOS.map((p) => (
@@ -310,7 +322,7 @@ function ComoFunciona() {
       </ol>
       <div className="mt-4 grid gap-4 sm:grid-cols-3">
         {[
-          ['104', 'pruebas automáticas: fechas, horas, conversaciones enteras y la API'],
+          ['115', 'pruebas automáticas: castellano hablado, conversaciones enteras, la API y el teléfono'],
           ['0 €', 'sin IA: el motor local atiende gratis y al instante'],
           ['< 1 cént.', 'por llamada con Claude Haiku 5.5'],
         ].map(([n, t]) => (

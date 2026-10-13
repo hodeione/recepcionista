@@ -1,6 +1,6 @@
 import { DateTime } from 'luxon'
-import type { Negocio } from '../negocio'
-import { comprobar, estadoDia, horasLibres, nuevoCodigo, ocupa, turnoDe, type Comprobacion, type MotivoNo, type Origen, type Reserva } from './motor'
+import type { Negocio } from '../negocio.js'
+import { comprobar, estadoDia, horasLibres, nuevoCodigo, ocupa, turnoDe, type Comprobacion, type MotivoNo, type Origen, type Reserva } from './motor.js'
 
 /**
  * Lo que la recepcionista puede hacer con las reservas. Hay dos

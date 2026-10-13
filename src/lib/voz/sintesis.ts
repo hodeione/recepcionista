@@ -51,7 +51,16 @@ export function cargarVoces(): Promise<InfoVoz[]> {
   })
 }
 
-export class Sintetizador {
+/** Lo que la llamada necesita de una voz: decir frases en cola, esperar a que acabe y cortar. */
+export interface Voz {
+  readonly hablando: boolean
+  hablar(frase: string): void
+  fin(): Promise<void>
+  cancelar(): void
+  alCambiar: (hablando: boolean) => void
+}
+
+export class Sintetizador implements Voz {
   vozId = ''
   velocidad = 1.05
   private pendientes = 0

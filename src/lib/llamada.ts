@@ -1,14 +1,14 @@
 import type { DateTime } from 'luxon'
-import type { AlmacenDemo, LineaLlamada, RegistroLlamada, Resultado } from './almacen'
-import { ErrorIA, MotorClaude } from './dialogo/claude'
-import { MotorLocal } from './dialogo/local'
-import type { Evento, Motor } from './dialogo/tipos'
-import { fechaCorta } from './es/hablar'
-import type { Negocio } from './negocio'
-import type { Conector } from './reservas/conector'
-import { tono, type Microfono } from './voz/microfono'
-import type { Oido } from './voz/reconocimiento'
-import type { Sintetizador } from './voz/sintesis'
+import type { AlmacenDemo, LineaLlamada, RegistroLlamada, Resultado } from './almacen.js'
+import { ErrorIA, MotorClaude } from './dialogo/claude.js'
+import { MotorLocal } from './dialogo/local.js'
+import type { Evento, Motor } from './dialogo/tipos.js'
+import { fechaCorta } from './es/hablar.js'
+import type { Negocio } from './negocio.js'
+import type { Conector } from './reservas/conector.js'
+import { tono, type Microfono } from './voz/microfono.js'
+import type { Oido } from './voz/reconocimiento.js'
+import type { Voz } from './voz/sintesis.js'
 
 /**
  * Una llamada de principio a fin: suena, la recepcionista saluda y a partir
@@ -27,7 +27,7 @@ export interface OpcionesLlamada {
   ia: boolean
   oido: Oido | null
   mic: Microfono | null
-  voz: Sintetizador
+  voz: Voz
   alCambiar: () => void
 }
 

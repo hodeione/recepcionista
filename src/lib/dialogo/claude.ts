@@ -1,10 +1,10 @@
 import type Anthropic from '@anthropic-ai/sdk'
 import type { DateTime } from 'luxon'
-import { DIAS, MESES } from '../es/hablar'
-import type { Negocio } from '../negocio'
-import type { Conector } from '../reservas/conector'
-import { estadoDia } from '../reservas/motor'
-import type { Evento, Motor, Respuesta } from './tipos'
+import { DIAS, MESES } from '../es/hablar.js'
+import type { Negocio } from '../negocio.js'
+import type { Conector } from '../reservas/conector.js'
+import { estadoDia } from '../reservas/motor.js'
+import type { Evento, Motor, Respuesta } from './tipos.js'
 
 /**
  * La recepcionista con Claude. La conversación vive aquí (en el navegador) y
@@ -49,7 +49,26 @@ export class MotorClaude implements Motor {
     private ahora: () => DateTime,
     private llamada?: string,
     private f: typeof fetch = (...a) => fetch(...a),
+    private telefono?: string,
   ) {}
+
+  /**
+   * Conversación serializable para seguirla en otra petición (teléfono).
+   * Los bloques de razonamiento se quitan: solo hacen falta dentro de un
+   * mismo turno con herramientas, y así el estado ocupa mucho menos.
+   */
+  exportar(): unknown {
+    const mensajes = this.mensajes.map((m) =>
+      typeof m.content === 'string' ? m : { ...m, content: m.content.filter((b) => b.type !== 'thinking' && b.type !== 'redacted_thinking') },
+    ).map((m) => (Array.isArray(m.content) && m.content.length === 0 ? { ...m, content: [{ type: 'text' as const, text: '…' }] } : m))
+    return { mensajes, resumen: this.resumen }
+  }
+
+  importar(datos: unknown) {
+    const d = datos as { mensajes?: Anthropic.MessageParam[]; resumen?: string } | null
+    if (Array.isArray(d?.mensajes)) this.mensajes = d.mensajes
+    this.resumen = d?.resumen ?? ''
+  }
 
   saludo(): string {
     const h = this.ahora().hour
@@ -169,7 +188,7 @@ export class MotorClaude implements Motor {
         case 'crear_reserva': {
           const nombreCliente = typeof e.nombre === 'string' ? e.nombre.trim() : ''
           if (!fecha || !hora || !personas || !nombreCliente) return { error: 'Faltan datos: nombre, fecha, hora o personas.' }
-          const r = await this.conector.crear({ nombre: nombreCliente, fecha, hora, personas, notas: typeof e.notas === 'string' ? e.notas : '', origen: 'ia', llamada: this.llamada })
+          const r = await this.conector.crear({ nombre: nombreCliente, fecha, hora, personas, notas: typeof e.notas === 'string' ? e.notas : '', origen: 'ia', llamada: this.llamada, telefono: this.telefono })
           if (!r.ok) return { ok: false, error: `No se pudo reservar: ${motivoTexto(r.error)}. Vuelve a consultar la disponibilidad.` }
           eventos.push({ tipo: 'reserva', reserva: r.reserva })
           return { ok: true, codigo: r.reserva.codigo, dia: this.diaTexto(r.reserva.fecha), hora: r.reserva.hora, personas: r.reserva.personas }

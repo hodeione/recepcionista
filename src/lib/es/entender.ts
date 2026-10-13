@@ -1,6 +1,6 @@
 import { DateTime } from 'luxon'
-import type { Faq, Negocio, Turno } from '../negocio'
-import { leerNumero, normalizar } from './numeros'
+import type { Faq, Negocio, Turno } from '../negocio.js'
+import { leerNumero, normalizar } from './numeros.js'
 
 /**
  * Comprensión del lenguaje para el motor sin IA: saca de una frase hablada

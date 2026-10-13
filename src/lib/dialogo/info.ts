@@ -1,6 +1,6 @@
-import { ALERGENOS, type Negocio, type Plato } from '../negocio'
-import { normalizar } from '../es/numeros'
-import { DIAS, horaHablada, lista } from '../es/hablar'
+import { ALERGENOS, type Negocio, type Plato } from '../negocio.js'
+import { normalizar } from '../es/numeros.js'
+import { DIAS, horaHablada, lista } from '../es/hablar.js'
 
 /** Respuestas informativas a partir de los datos del negocio: nunca se inventa nada. */
 

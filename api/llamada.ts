@@ -24,8 +24,25 @@ function json(status: number, body: unknown, extra: Record<string, string> = {})
   })
 }
 
-export function GET(): Response {
+/** Última comprobación de saldo: una petición de 1 token (una millonésima de dólar) cada 10 minutos como mucho. */
+let comprobadoHasta = 0
+
+async function comprobarSaldo() {
+  if (Date.now() < comprobadoHasta || Date.now() < sinSaldoHasta) return
+  comprobadoHasta = Date.now() + 10 * 60_000
+  try {
+    cliente ??= new Anthropic()
+    await cliente.messages.create({ model: MODELO, max_tokens: 1, messages: [{ role: 'user', content: '.' }] })
+  } catch (err) {
+    if (esFaltaDeSaldo(err) || err instanceof Anthropic.AuthenticationError) sinSaldoHasta = Date.now() + 10 * 60_000
+    // Otros errores (red, sobrecarga) no desactivan la IA: el turno lo volverá a intentar.
+  }
+}
+
+export async function GET(): Promise<Response> {
   const clave = Boolean(process.env.ANTHROPIC_API_KEY)
+  // Así la web sabe de antemano si hay saldo y no empieza una llamada con la IA para tener que disculparse.
+  if (clave) await comprobarSaldo()
   const saldo = Date.now() > sinSaldoHasta
   return json(200, { configured: clave && saldo, motivo: !clave ? 'sin_clave' : !saldo ? 'sin_saldo' : null, modelo: MODELO })
 }

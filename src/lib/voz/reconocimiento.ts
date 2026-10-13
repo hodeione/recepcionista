@@ -1,5 +1,5 @@
-import type { Microfono } from './microfono'
-import { DetectorVoz, a16k } from './vad'
+import type { Microfono } from './microfono.js'
+import { DetectorVoz, a16k } from './vad.js'
 
 /**
  * El «oído» de la recepcionista. Dos opciones:

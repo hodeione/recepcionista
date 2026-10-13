@@ -1,5 +1,5 @@
 import { DateTime } from 'luxon'
-import type { Mesa, Negocio, Turno } from '../negocio'
+import type { Mesa, Negocio, Turno } from '../negocio.js'
 
 /**
  * Disponibilidad con las mismas reglas que Taberna Luna (src/lib.js de

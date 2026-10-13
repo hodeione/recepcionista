@@ -1,12 +1,12 @@
 import type { DateTime } from 'luxon'
-import { analizar, type Analisis, type Esperando } from '../es/entender'
-import { aLaHora, deletrear, fechaHablada, lista, personasHabladas, saludoHora } from '../es/hablar'
-import { normalizar } from '../es/numeros'
-import type { Negocio, Turno } from '../negocio'
-import type { Conector } from '../reservas/conector'
-import { estadoDia, type Hueco, type MotivoNo, type Reserva } from '../reservas/motor'
-import { horarioHablado, platosMencionados, rangoTurno, resumenCarta, sobreDieta, sobrePlatos } from './info'
-import type { Evento, Motor, Respuesta } from './tipos'
+import { analizar, type Analisis, type Esperando } from '../es/entender.js'
+import { aLaHora, deletrear, fechaHablada, lista, personasHabladas, saludoHora } from '../es/hablar.js'
+import { normalizar } from '../es/numeros.js'
+import type { Negocio, Turno } from '../negocio.js'
+import type { Conector } from '../reservas/conector.js'
+import { estadoDia, type Hueco, type MotivoNo, type Reserva } from '../reservas/motor.js'
+import { horarioHablado, platosMencionados, rangoTurno, resumenCarta, sobreDieta, sobrePlatos } from './info.js'
+import type { Evento, Motor, Respuesta } from './tipos.js'
 
 /**
  * Motor de diálogo sin IA: una máquina de estados que rellena los datos de
@@ -49,7 +49,20 @@ export class MotorLocal implements Motor {
     private conector: Conector,
     private ahora: () => DateTime,
     private llamada?: string,
+    /** Número de quien llama (en el teléfono real); se guarda con la reserva. */
+    private telefono?: string,
   ) {}
+
+  /** Estado serializable, para seguir la conversación en otra petición (teléfono). */
+  exportar(): unknown {
+    return { e: this.e, fechaVaga: this.fechaVaga }
+  }
+
+  importar(datos: unknown) {
+    const d = datos as { e?: Estado; fechaVaga?: string } | null
+    if (d?.e) this.e = d.e
+    this.fechaVaga = d?.fechaVaga
+  }
 
   saludo(): string {
     return `${this.negocio.nombre}, ${saludoHora(this.ahora())}. Le atiende ${this.negocio.asistente}, la recepcionista virtual. ¿En qué puedo ayudarle?`
@@ -329,6 +342,7 @@ export class MotorLocal implements Motor {
         notas: d.notas.join('. '),
         origen: 'ia',
         llamada: this.llamada,
+        telefono: this.telefono,
       })
       if (!r.ok) {
         d.hora = undefined
